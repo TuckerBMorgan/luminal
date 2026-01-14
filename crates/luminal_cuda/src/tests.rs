@@ -145,6 +145,12 @@ proptest! {
     }
 
     #[test]
+    fn test_mod(x in 1usize..100, y in 1usize..5) {
+        test_binary(x, x, |a, b| a % b, |a, b| (&a % &b).unwrap());
+        test_binary((y, x), (y, x), |a, b| a % b, |a, b| (&a % &b).unwrap());
+    }
+
+    #[test]
     fn test_max(rows in 1usize..8, cols in 1usize..8) {
         test_unary((rows, cols), |a| a.max(1), |a| a.max(1).unwrap());
     }
