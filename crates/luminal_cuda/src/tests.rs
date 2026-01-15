@@ -81,9 +81,9 @@ pub fn test_unary(
 
 // fmod(a, b) = a - floor(a / b) * b
 fn tensor_fmod(a: &Tensor, b: &Tensor) -> Result<Tensor> {
-    let div = (a / b).unwrap();
-    let floored = div.floor().unwrap();
-    (a - &(&floored * b).unwrap())
+    let div = (a / b)?;
+    let floored = div.floor()?;
+    a - &(&floored * b)?
 }
 
 /// Test a binary operation on CUDA against candle reference
