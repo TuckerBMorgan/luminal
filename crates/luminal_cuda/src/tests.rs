@@ -1,4 +1,4 @@
-use candle_core::{DType, Device, Tensor};
+use candle_core::{DType, Device, Result, Tensor};
 use cudarc::driver::CudaContext;
 use luminal::prelude::*;
 use proptest::prelude::*;
