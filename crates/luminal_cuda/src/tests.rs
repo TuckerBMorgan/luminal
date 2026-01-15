@@ -159,8 +159,8 @@ proptest! {
 
     #[test]
     fn test_lessthan(x in 1usize..100, y in 1usize..5) {
-        test_binary(x, x, |a, b| a.lt(&b), |a, b| (&a.lt(&b)).unwrap());
-        test_binary((y, x), (y, x), |a, b| a.lt(&b), |a, b| (&a.lt(&b)).unwrap());
+        test_binary(x, x, |a, b| a.lt(b), |a, b| (&a.lt(&b)).unwrap());
+        test_binary((y, x), (y, x), |a, b| a.lt(b), |a, b| (&a.lt(&b)).unwrap());
     }
 
     #[test]
