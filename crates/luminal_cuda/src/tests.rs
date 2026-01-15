@@ -1,4 +1,4 @@
-use candle_core::{Device, Tensor};
+use candle_core::{DType, Device, Tensor};
 use cudarc::driver::CudaContext;
 use luminal::prelude::*;
 use proptest::prelude::*;
@@ -80,10 +80,10 @@ pub fn test_unary(
 }
 
 // fmod(a, b) = a - floor(a / b) * b
-fn tensor_fmod(a: &Tensor, b: &Tensor) -> Tensor {
+fn tensor_fmod(a: &Tensor, b: &Tensor) -> Result<Tensor> {
     let div = (a / b).unwrap();
     let floored = div.floor().unwrap();
-    (a - &(&floored * b).unwrap()).unwrap()
+    (a - &(&floored * b).unwrap())
 }
 
 /// Test a binary operation on CUDA against candle reference
@@ -154,13 +154,13 @@ proptest! {
     #[test]
     fn test_mod(x in 1usize..100, y in 1usize..5) {
         test_binary(x, x, |a, b| a % b, |a, b| tensor_fmod(&a, &b).unwrap());
-        test_binary((y, x), (y, x), |a, b| a % b, |a, b| tensor_fmod(&a,  &b).unwrap());
+        test_binary((y, x), (y, x), |a, b| a % b, |a, b| tensor_fmod(&a, &b).unwrap());
     }
 
     #[test]
     fn test_lessthan(x in 1usize..100, y in 1usize..5) {
-        test_binary(x, x, |a, b| a.lt(b), |a, b| (&a.lt(&b)).unwrap());
-        test_binary((y, x), (y, x), |a, b| a.lt(b), |a, b| (&a.lt(&b)).unwrap());
+        test_binary(x, x, |a, b| a.lt(b), |a, b| a.lt(&b).unwrap().to_dtype(DType::F32).unwrap());
+        test_binary((y, x), (y, x), |a, b| a.lt(b), |a, b| a.lt(&b).unwrap().to_dtype(DType::F32).unwrap());
     }
 
     #[test]
