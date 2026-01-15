@@ -940,7 +940,7 @@ impl KernelOp for KernelMod {
         match dtype {
             "float" | "half" => {
                 // The modulo operator is only defined in cuda for int types
-                // so we use the fmodf function to handle it for play types
+                // so we use the fmodf function to handle float types
                 kernel = format!(
                     "
                     {}
