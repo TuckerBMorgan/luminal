@@ -6,7 +6,6 @@ use crate::op::*;
 use crate::prelude::*;
 
 use as_any::AsAny;
-use graphviz_rust::dot_structures::NodeId;
 use itertools::Itertools;
 use num_traits::Float;
 use petgraph::{Direction, algo::toposort, prelude::StableGraph, visit::EdgeRef};
@@ -1482,7 +1481,7 @@ impl NativeRuntime {
         let inputs: Vec<NodeIndex> = self
             .graph
             .edges_directed(node, Direction::Incoming)
-            .map(|x| x.source().clone())
+            .map(|x| x.source())
             .collect();
 
         // Check if each of them can be release
@@ -1497,7 +1496,7 @@ impl NativeRuntime {
         let can_remove = self
             .graph
             .edges_directed(input_node, Direction::Outgoing)
-            .all(|x| return self.finished_nodes.contains(&x.source()));
+            .all(|x| self.finished_nodes.contains(&x.source()));
 
         if can_remove {
             self.buffers.remove(&input_node);
