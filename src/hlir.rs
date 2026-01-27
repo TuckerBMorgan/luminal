@@ -1496,7 +1496,7 @@ impl NativeRuntime {
         let can_remove = self
             .graph
             .edges_directed(input_node, Direction::Outgoing)
-            .all(|x| self.finished_nodes.contains(&x.source()));
+            .all(|x| self.finished_nodes.contains(&x.target()));
 
         if can_remove {
             self.buffers.remove(&input_node);
