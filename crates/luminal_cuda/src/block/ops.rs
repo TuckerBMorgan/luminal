@@ -188,7 +188,8 @@ impl EgglogOp for RowSwishMul {
     }
 
     fn rewrites(&self) -> Vec<String> {
-        vec!["(rule
+        vec![
+            "(rule
             (
                 (= ?sigmoid (Sigmoid
                     (ECons ?batch (ECons ?width (ENil)))
@@ -229,7 +230,8 @@ impl EgglogOp for RowSwishMul {
             )
             :name \"row swish mul\"
         )"
-        .to_string()]
+            .to_string(),
+        ]
     }
 
     fn cleanup(&self) -> bool {
@@ -385,7 +387,8 @@ impl EgglogOp for RowRMSNorm {
     }
 
     fn rewrites(&self) -> Vec<String> {
-        vec!["(rule
+        vec![
+            "(rule
             (
                 (= ?square (Mul ?inp_range ?x ?inp_stride ?x ?inp_stride ?square_stride))
                 (= ?width (nth_from_end ?inp_range 0))
@@ -473,7 +476,8 @@ impl EgglogOp for RowRMSNorm {
             )
             :name \"row rms norm\"
         )"
-        .to_string()]
+            .to_string(),
+        ]
     }
 
     fn cleanup(&self) -> bool {
@@ -645,14 +649,16 @@ impl EgglogOp for RowRope {
     }
 
     fn rewrites(&self) -> Vec<String> {
-        vec!["(rule
+        vec![
+            "(rule
            (
                 (= ?e (RowRope ?shape ?inp ?stride ?row_width ?pos_ids))
                 (= (F32) (dtype ?inp))
             )
            ((set (dtype ?e) (F32)))
         )"
-        .to_string()]
+            .to_string(),
+        ]
     }
 
     fn early_rewrites(&self) -> Vec<String> {
@@ -1197,7 +1203,7 @@ impl BlockOp for TileMatmulSplitK {
         // For input A: all dims except n (at index len-1)
         let mut a = vec![true; self.range.len()];
         a[self.range.len() - 1] = false; // n dimension
-                                         // For input B: all dims except m (at index len-2)
+        // For input B: all dims except m (at index len-2)
         let mut b = vec![true; self.range.len()];
         b[self.range.len() - 2] = false; // m dimension
         vec![a, b]
