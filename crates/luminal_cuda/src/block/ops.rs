@@ -612,7 +612,6 @@ impl BlockOp for RowRMSNorm {
     }
 }
 
-// TODO: generalize elementwise fusion and remove rope operations
 #[derive(Debug, Default)]
 pub struct RowRope {
     range: Vec<Expression>,
