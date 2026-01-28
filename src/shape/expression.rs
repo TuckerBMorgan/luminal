@@ -86,7 +86,7 @@ impl Default for Expression {
 /// A single term of a symbolic expression such as a variable, number or operation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Term {
-    Num(i32),
+    Num(i64),
     Var(char),
     Add,
     Sub,
@@ -327,7 +327,7 @@ impl Expression {
 
         egglog_simplify(self)
     }
-    pub fn as_num(&self) -> Option<i32> {
+    pub fn as_num(&self) -> Option<i64> {
         if let Term::Num(n) = self.terms.read()[0] {
             if self.terms.read().len() == 1 {
                 return Some(n);
@@ -344,7 +344,7 @@ impl Expression {
     /// Minimum
     pub fn min(self, rhs: impl Into<Self>) -> Self {
         let rhs = rhs.into();
-        if rhs == self || rhs == i32::MAX {
+        if rhs == self || rhs == i64::MAX {
             return self;
         }
         if let (Some(a), Some(b)) = (self.as_num(), rhs.as_num()) {
@@ -358,10 +358,10 @@ impl Expression {
     /// Maximum
     pub fn max<E: Into<Expression>>(self, rhs: E) -> Self {
         let rhs = rhs.into();
-        if rhs == self || self == i32::MAX {
+        if rhs == self || self == i64::MAX {
             return self;
         }
-        if rhs == i32::MAX {
+        if rhs == i64::MAX {
             return rhs;
         }
         if let (Some(a), Some(b)) = (self.as_num(), rhs.as_num()) {
@@ -378,7 +378,7 @@ impl Expression {
         if rhs == self {
             return true.into();
         }
-        if rhs == i32::MAX {
+        if rhs == i64::MAX {
             return false.into();
         }
         if let (Some(a), Some(b)) = (self.as_num(), rhs.as_num()) {
@@ -449,7 +449,7 @@ impl Expression {
     pub fn exec_single_var_stack(&self, value: usize, stack: &mut Vec<i64>) -> usize {
         for term in self.terms.read().iter() {
             match term {
-                Term::Num(n) => stack.push(*n as i64),
+                Term::Num(n) => stack.push(*n),
                 Term::Var(_) => stack.push(value as i64),
                 _ => {
                     let a = stack.pop().unwrap();
@@ -472,7 +472,7 @@ impl Expression {
     ) -> Option<usize> {
         for term in self.terms.read().iter() {
             match term {
-                Term::Num(n) => stack.push(*n as i64),
+                Term::Num(n) => stack.push(*n),
                 Term::Var(c) =>
                 {
                     #[allow(clippy::needless_borrow)]
@@ -508,7 +508,7 @@ impl Expression {
             if let Term::Var(v) = *term
                 && let Some(val) = dyn_map.get(&v)
             {
-                *term = Term::Num(*val as i32);
+                *term = Term::Num(*val as i64);
             }
         }
     }
@@ -573,37 +573,49 @@ impl From<&char> for Expression {
 
 impl From<usize> for Expression {
     fn from(value: usize) -> Self {
-        Expression::new(vec![Term::Num(value as i32)])
+        Expression::new(vec![Term::Num(value as i64)])
     }
 }
 
 impl From<&usize> for Expression {
     fn from(value: &usize) -> Self {
-        Expression::new(vec![Term::Num(*value as i32)])
+        Expression::new(vec![Term::Num(*value as i64)])
     }
 }
 
 impl From<i32> for Expression {
     fn from(value: i32) -> Self {
-        Expression::new(vec![Term::Num(value)])
+        Expression::new(vec![Term::Num(value as i64)])
     }
 }
 
 impl From<&i32> for Expression {
     fn from(value: &i32) -> Self {
+        Expression::new(vec![Term::Num(*value as i64)])
+    }
+}
+
+impl From<i64> for Expression {
+    fn from(value: i64) -> Self {
+        Expression::new(vec![Term::Num(value)])
+    }
+}
+
+impl From<&i64> for Expression {
+    fn from(value: &i64) -> Self {
         Expression::new(vec![Term::Num(*value)])
     }
 }
 
 impl From<bool> for Expression {
     fn from(value: bool) -> Self {
-        Expression::new(vec![Term::Num(value as i32)])
+        Expression::new(vec![Term::Num(value as i64)])
     }
 }
 
 impl From<&bool> for Expression {
     fn from(value: &bool) -> Self {
-        Expression::new(vec![Term::Num(*value as i32)])
+        Expression::new(vec![Term::Num(*value as i64)])
     }
 }
 

@@ -258,7 +258,7 @@ impl GraphTensor {
     /// assert_eq!(b.dims(), vec![Expression::from(5), Expression::from(6)]);
     /// ```
     pub fn slice_along(self, slice: impl SliceRange, axis: usize) -> GraphTensor {
-        let mut s = vec![(Expression::from(0), Expression::from(i32::MAX)); axis + 1];
+        let mut s = vec![(Expression::from(0), Expression::from(i64::MAX)); axis + 1];
         s[axis] = slice.bounds();
         self.slice(s)
     }
