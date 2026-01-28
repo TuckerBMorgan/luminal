@@ -268,7 +268,14 @@ impl Expression {
         let mut symbols = vec![];
         for term in self.terms.read().iter() {
             let new_symbol = match term {
-                Term::Num(n) => n.to_string(),
+                Term::Num(n) => {
+                    assert!(
+                        *n >= i32::MIN as i64 && *n <= i32::MAX as i64,
+                        "Expression value {} exceeds i32 range for CUDA kernel generation",
+                        n
+                    );
+                    n.to_string()
+                }
                 Term::Var(c) => format!("{}const_{c}", if *c == 'z' { "" } else { "*" }),
                 Term::Max => format!(
                     "max((int){}, (int){})",
