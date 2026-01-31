@@ -1518,19 +1518,54 @@ impl Runtime for NativeRuntime {
     }
 
     fn execute(&mut self, dyn_map: &FxHashMap<char, usize>) -> Self::ExecReturn {
-        for node in toposort(&self.graph, None).unwrap() {
-            if (**self.graph[node]).as_any().is::<Input>()
-                || (**self.graph[node]).as_any().is::<Output>()
-            {
+        // DEBUG: Print all nodes in toposort order
+        let topo_nodes: Vec<_> = toposort(&self.graph, None).unwrap();
+        eprintln!("[DEBUG] Toposort has {} nodes", topo_nodes.len());
+
+        // DEBUG: Print all buffer keys before execution
+        eprintln!(
+            "[DEBUG] Buffers before execution: {:?}",
+            self.buffers.keys().collect::<Vec<_>>()
+        );
+
+        // DEBUG: Print all Input nodes
+        for node in &topo_nodes {
+            if (**self.graph[*node]).as_any().is::<Input>() {
+                eprintln!("[DEBUG] Input node: {:?}", node);
+            }
+        }
+
+        for node in topo_nodes {
+            let is_input = (**self.graph[node]).as_any().is::<Input>();
+            let is_output = (**self.graph[node]).as_any().is::<Output>();
+
+            if is_input || is_output {
                 continue;
+            }
+
+            // DEBUG: Check each incoming edge's source before accessing buffer
+            let incoming_edges: Vec<_> = self
+                .graph
+                .edges_directed(node, Direction::Incoming)
+                .sorted_by_key(|e| e.id())
+                .collect();
+
+            for edge in &incoming_edges {
+                let source = edge.source();
+                let has_buffer = self.buffers.contains_key(&source);
+                let source_is_input = (**self.graph[source]).as_any().is::<Input>();
+                if !has_buffer {
+                    eprintln!(
+                        "[DEBUG] ERROR: Missing buffer for source {:?}, is_input={}, op={:?}",
+                        source, source_is_input, self.graph[source]
+                    );
+                }
             }
 
             let span = info_span!("native_op", op = %format!("{:?}", self.graph[node]));
             let _entered = span.enter();
-            let inputs = self
-                .graph
-                .edges_directed(node, Direction::Incoming)
-                .sorted_by_key(|e| e.id())
+            let inputs = incoming_edges
+                .into_iter()
                 .map(|e| &self.buffers[&e.source()])
                 .collect_vec();
             let output = self.graph[node].execute(inputs, dyn_map);
