@@ -1160,8 +1160,22 @@ def test_where_equal(backend):
     x = torch.tensor(
         [
             [
-                0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0,
-                0.0, 5.0, 0.0, 6.0, 0.0, 7.0, 0.0, 8.0,
+                0.0,
+                1.0,
+                0.0,
+                2.0,
+                0.0,
+                3.0,
+                0.0,
+                4.0,
+                0.0,
+                5.0,
+                0.0,
+                6.0,
+                0.0,
+                7.0,
+                0.0,
+                8.0,
             ]
         ]
     )
@@ -1192,12 +1206,40 @@ def test_where_two_tensors(backend):
     x = torch.tensor(
         [
             [
-                0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0,
-                0.0, 5.0, 0.0, 6.0, 0.0, 7.0, 0.0, 8.0,
+                0.0,
+                1.0,
+                0.0,
+                2.0,
+                0.0,
+                3.0,
+                0.0,
+                4.0,
+                0.0,
+                5.0,
+                0.0,
+                6.0,
+                0.0,
+                7.0,
+                0.0,
+                8.0,
             ],
             [
-                1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0,
-                5.0, 0.0, 6.0, 0.0, 7.0, 0.0, 8.0, 0.0,
+                1.0,
+                0.0,
+                2.0,
+                0.0,
+                3.0,
+                0.0,
+                4.0,
+                0.0,
+                5.0,
+                0.0,
+                6.0,
+                0.0,
+                7.0,
+                0.0,
+                8.0,
+                0.0,
             ],
         ]
     )
@@ -1331,3 +1373,32 @@ def test_split_multiple_chunks(backend):
     with torch.no_grad():
         expected = model(x)
     assert_tensors_close(result, expected, tol=1e-5)
+
+
+# --- NanoGPT Tests ---
+
+
+def test_nanogpt(backend):
+    """Test NanoGPT model (small config for fast testing)."""
+    from nanogpt import GPT, GPTConfig
+
+    config = GPTConfig()
+    model = GPT(config)
+    model.eval()  # Put in eval mode
+
+    batch_size = 1
+    seq_length = 128  # Start with smaller sequence for export
+
+    x = torch.randint(
+        0, model.config.vocab_size, (batch_size, seq_length), dtype=torch.long
+    )
+    # Compile and run
+    compiled = torch.compile(model, backend=backend)
+    result = compiled(x)
+
+    # Run reference
+    with torch.no_grad():
+        expected = model(x)
+
+    # GPT returns (logits, loss) tuple - compare logits
+    assert_tensors_close(result[0], expected[0], tol=1e-4)

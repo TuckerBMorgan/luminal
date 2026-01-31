@@ -46,7 +46,7 @@ def _create_backend(backend: str = "native") -> Callable:
                 tmp_path,
                 input_names=[f"input_{i}" for i in range(len(example_inputs))],
                 dynamic_axes=None,
-                opset_version=18,
+                opset_version=17,
             )
 
             # Process through Rust with the specified backend
