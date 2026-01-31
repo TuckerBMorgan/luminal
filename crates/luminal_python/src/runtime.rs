@@ -18,7 +18,7 @@ use rustc_hash::FxHashMap;
 /// Enum wrapper for runtime backends allowing runtime selection.
 pub enum RuntimeBackend {
     Native(NativeRuntime),
-    Cuda(CudaRuntime),
+    Cuda(Box<CudaRuntime>),
 }
 
 impl RuntimeBackend {
@@ -78,7 +78,7 @@ pub fn prepare_cuda(context: &mut Graph) -> Result<(CudaRuntime, Arc<CudaStream>
 /// Finalize CUDA runtime: run search with data already set.
 pub fn finalize_cuda(context: &mut Graph, rt: CudaRuntime) -> RuntimeBackend {
     let optimized_rt = context.search(rt, 1);
-    RuntimeBackend::Cuda(optimized_rt)
+    RuntimeBackend::Cuda(Box::new(optimized_rt))
 }
 
 /// Initialize a native (CPU) runtime using single-phase approach.

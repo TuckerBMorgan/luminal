@@ -408,7 +408,7 @@ pub fn parse_erf_node(
     let coeff_a_name = format!("{}_erf_coeff_a", output_name);
     let coeff_a = cx.named_tensor(coeff_a_name.clone(), vec![1usize]);
     tensors.insert(coeff_a_name.clone(), coeff_a);
-    weight_data.push((coeff_a_name, vec![2.2567583342f32]));
+    weight_data.push((coeff_a_name, vec![2.256_758_5_f32]));
     let coeff_a_bc = broadcast_to(coeff_a, &input_shape);
 
     // Coefficient b = 0.0885
@@ -527,7 +527,7 @@ pub fn parse_gelu_node(
     let coeff_a_name = format!("{}_gelu_coeff_a", output_name);
     let coeff_a = cx.named_tensor(coeff_a_name.clone(), vec![1usize]);
     tensors.insert(coeff_a_name.clone(), coeff_a);
-    weight_data.push((coeff_a_name, vec![1.5957691216f32]));
+    weight_data.push((coeff_a_name, vec![1.595_769_2_f32]));
     let coeff_a_bc = broadcast_to(coeff_a, &input_shape);
 
     // Coefficient b = 0.044715
@@ -679,7 +679,7 @@ pub fn parse_layer_normalization_node(
     let input_dims = input.dims();
     let mut scale_expanded = scale;
     for i in (0..resolved_axis).rev() {
-        scale_expanded = scale_expanded.expand_dim(0, input_dims[i].clone());
+        scale_expanded = scale_expanded.expand_dim(0, input_dims[i]);
     }
     let mut result = normalized.mul(scale_expanded);
 
@@ -690,7 +690,7 @@ pub fn parse_layer_normalization_node(
             .ok_or_else(|| format!("LayerNorm: missing bias tensor '{}'", node.input[2]))?;
         let mut bias_expanded = bias;
         for i in (0..resolved_axis).rev() {
-            bias_expanded = bias_expanded.expand_dim(0, input_dims[i].clone());
+            bias_expanded = bias_expanded.expand_dim(0, input_dims[i]);
         }
         result = result.add(bias_expanded);
     }
@@ -992,6 +992,7 @@ fn compute_where_broadcast_shape(
 
 /// If tensor has known inf values, create a clamped copy (±1e9); then broadcast to target shape.
 /// This avoids 0 * inf = NaN in luminal's cond decomposition (cond * x + (1-cond) * y).
+#[allow(clippy::too_many_arguments)]
 fn clamp_and_broadcast(
     tensor: GraphTensor,
     input_name: &str,
@@ -1002,19 +1003,19 @@ fn clamp_and_broadcast(
     weight_data: &mut Vec<(String, Vec<f32>)>,
     known_values: &HashMap<String, Vec<f32>>,
 ) -> GraphTensor {
-    if let Some(vals) = known_values.get(input_name) {
-        if vals.iter().any(|v| v.is_infinite()) {
-            let clamped: Vec<f32> = vals.iter().map(|&v| v.clamp(-1e9, 1e9)).collect();
-            let clamped_name = format!("{}_{}_clamped", output_name, label);
-            let shape: Vec<usize> = tensor
-                .dims()
-                .iter()
-                .map(|d| d.to_usize().expect("dim must be concrete"))
-                .collect();
-            let clamped_tensor = cx.named_tensor(clamped_name.clone(), shape);
-            weight_data.push((clamped_name.clone(), clamped));
-            return broadcast_to(clamped_tensor, broadcast_shape);
-        }
+    if let Some(vals) = known_values.get(input_name)
+        && vals.iter().any(|v| v.is_infinite())
+    {
+        let clamped: Vec<f32> = vals.iter().map(|&v| v.clamp(-1e9, 1e9)).collect();
+        let clamped_name = format!("{}_{}_clamped", output_name, label);
+        let shape: Vec<usize> = tensor
+            .dims()
+            .iter()
+            .map(|d| d.to_usize().expect("dim must be concrete"))
+            .collect();
+        let clamped_tensor = cx.named_tensor(clamped_name.clone(), shape);
+        weight_data.push((clamped_name.clone(), clamped));
+        return broadcast_to(clamped_tensor, broadcast_shape);
     }
     broadcast_to(tensor, broadcast_shape)
 }
@@ -1367,7 +1368,7 @@ fn gather_axis0(
     let idx_dims = indices.dims();
     let mut offsets_expanded = offsets;
     for i in (0..idx_dims.len()).rev() {
-        offsets_expanded = offsets_expanded.expand_dim(0, idx_dims[i].clone());
+        offsets_expanded = offsets_expanded.expand_dim(0, idx_dims[i]);
     }
 
     let flat_indices = (scaled_expanded + offsets_expanded).cast(DType::Int);
@@ -1619,7 +1620,7 @@ pub fn parse_slice_node(
     // Build slice ranges for each axis
     let mut slice_ranges: Vec<(Expression, Expression)> = input_dims
         .iter()
-        .map(|d| (Expression::from(0), d.clone()))
+        .map(|d| (Expression::from(0), *d))
         .collect();
 
     for i in 0..axes.len() {
@@ -1649,25 +1650,26 @@ pub fn parse_slice_node(
     let output_name = &node.output[0];
 
     // If input is in known_values (constant), fully constant-fold to avoid graph operations
-    if let Some(input_vals) = known_values.get(&node.input[0]).cloned() {
-        if ndim == 1 && axes.len() == 1 {
-            let start = slice_ranges[0].0.to_usize().unwrap_or(0);
-            let end = slice_ranges[0].1.to_usize().unwrap_or(input_vals.len());
-            let folded: Vec<f32> = input_vals[start..end].to_vec();
-            // Use max(1) for shape to avoid 0-dim tensors in luminal
-            let shape = vec![folded.len().max(1)];
-            // Ensure weight_data matches shape (pad with 0 if empty)
-            let wd = if folded.is_empty() {
-                vec![0.0]
-            } else {
-                folded.clone()
-            };
-            let tensor = cx.named_tensor(output_name.clone(), shape);
-            tensors.insert(output_name.clone(), tensor);
-            known_values.insert(output_name.clone(), folded);
-            weight_data.push((output_name.clone(), wd));
-            return Ok(());
-        }
+    if let Some(input_vals) = known_values.get(&node.input[0]).cloned()
+        && ndim == 1
+        && axes.len() == 1
+    {
+        let start = slice_ranges[0].0.to_usize().unwrap_or(0);
+        let end = slice_ranges[0].1.to_usize().unwrap_or(input_vals.len());
+        let folded: Vec<f32> = input_vals[start..end].to_vec();
+        // Use max(1) for shape to avoid 0-dim tensors in luminal
+        let shape = vec![folded.len().max(1)];
+        // Ensure weight_data matches shape (pad with 0 if empty)
+        let wd = if folded.is_empty() {
+            vec![0.0]
+        } else {
+            folded.clone()
+        };
+        let tensor = cx.named_tensor(output_name.clone(), shape);
+        tensors.insert(output_name.clone(), tensor);
+        known_values.insert(output_name.clone(), folded);
+        weight_data.push((output_name.clone(), wd));
+        return Ok(());
     }
 
     let result = input.slice(slice_ranges);
@@ -1737,7 +1739,7 @@ pub fn parse_reshape_node(
             .map(|d| d.to_usize().expect("dim must be concrete"))
             .collect();
         let one_expanded = broadcast_to(one, &broadcast_shape);
-        result = result * one_expanded;
+        result *= one_expanded;
     }
     result.shape = ShapeTracker::new(final_shape);
     let output_name = &node.output[0];
@@ -2173,7 +2175,7 @@ pub fn parse_split_node(
                         Expression::from((offset + size) as i32),
                     )
                 } else {
-                    (Expression::from(0), d.clone())
+                    (Expression::from(0), *d)
                 }
             })
             .collect();
@@ -2182,11 +2184,11 @@ pub fn parse_split_node(
         tensors.insert(output_name.clone(), result);
 
         // Handle constant folding for known inputs (1D case)
-        if let Some(input_vals) = known_values.get(&node.input[0]).cloned() {
-            if ndim == 1 {
-                let folded: Vec<f32> = input_vals[offset..offset + size].to_vec();
-                known_values.insert(output_name.clone(), folded);
-            }
+        if let Some(input_vals) = known_values.get(&node.input[0]).cloned()
+            && ndim == 1
+        {
+            let folded: Vec<f32> = input_vals[offset..offset + size].to_vec();
+            known_values.insert(output_name.clone(), folded);
         }
 
         offset += size;

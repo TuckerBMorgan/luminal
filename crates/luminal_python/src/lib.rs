@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 #[pyo3(signature = (path, backend="native"))]
 fn process_onnx(path: &str, backend: &str) -> PyResult<OnnxGraphResult> {
     build_onnx_graph(path, backend)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+        .map_err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>)
 }
 
 #[pymodule]

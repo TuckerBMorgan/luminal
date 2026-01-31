@@ -19,7 +19,7 @@ pub fn build_onnx_graph(path: &str, backend: &str) -> Result<OnnxGraphResult, St
     let model = ModelProto::parse_from_bytes(&data)
         .map_err(|e| format!("Failed to parse Onnx Model: {}", e))?;
 
-    return OnnxGraphResult::parse_model(model, model_directory, backend);
+    OnnxGraphResult::parse_model(model, model_directory, backend)
 }
 
 /// Process all nodes in the ONNX graph, dispatching each to its parse function.
@@ -219,21 +219,21 @@ impl OnnxGraphResult {
             if let Some(base_gt) = tensors.get(base_name) {
                 // Find which weight_data entry has this same node ID (the aliased initializer)
                 for (wd_name, wd_data) in &weight_data.clone() {
-                    if let Some(wd_gt) = tensors.get(wd_name) {
-                        if wd_gt.id == base_gt.id {
-                            // Found the source data, generate transposed version
-                            if let Some(kn_gt) = tensors.get(&kn_name) {
-                                let kn_dims = kn_gt.dims();
-                                if kn_dims.len() == 2 {
-                                    let k = kn_dims[0].to_usize().unwrap();
-                                    let n = kn_dims[1].to_usize().unwrap();
-                                    // The _kn shape is [K, N] where original is [N, K]
-                                    let transposed = transpose_weight_data(wd_data, n, k);
-                                    weight_data.push((kn_name.clone(), transposed));
-                                }
+                    if let Some(wd_gt) = tensors.get(wd_name)
+                        && wd_gt.id == base_gt.id
+                    {
+                        // Found the source data, generate transposed version
+                        if let Some(kn_gt) = tensors.get(&kn_name) {
+                            let kn_dims = kn_gt.dims();
+                            if kn_dims.len() == 2 {
+                                let k = kn_dims[0].to_usize().unwrap();
+                                let n = kn_dims[1].to_usize().unwrap();
+                                // The _kn shape is [K, N] where original is [N, K]
+                                let transposed = transpose_weight_data(wd_data, n, k);
+                                weight_data.push((kn_name.clone(), transposed));
                             }
-                            break;
                         }
+                        break;
                     }
                 }
             }
@@ -262,10 +262,10 @@ impl OnnxGraphResult {
 
         // Helper to compute n_elements for a tensor
         let compute_n_elements = |name: &str| -> usize {
-            if let Some(vi) = onnx_graph.input.iter().find(|i| &i.name == name) {
+            if let Some(vi) = onnx_graph.input.iter().find(|i| i.name == name) {
                 let shape = get_shape_for_onnx_value(vi);
                 shape.iter().product::<usize>()
-            } else if let Some(init) = onnx_graph.initializer.iter().find(|i| &i.name == name) {
+            } else if let Some(init) = onnx_graph.initializer.iter().find(|i| i.name == name) {
                 init.dims.iter().map(|&d| d as usize).product::<usize>()
             } else if let Some((_, data)) = weight_data.iter().find(|(n, _)| n == name) {
                 data.len()

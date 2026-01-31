@@ -7,25 +7,23 @@ use onnx_protobuf::*;
 // Note: some times pytorch will create tensors with a 0 shape
 // we might want to handle, 0 shape and No shape as seperate ideas
 pub fn get_shape_for_onnx_value(value: &onnx_protobuf::ValueInfoProto) -> Vec<usize> {
-    if let Some(type_proto) = value.type_.as_ref() {
-        if let Some(onnx_protobuf::type_proto::Value::TensorType(tensor)) = &type_proto.value {
-            if let Some(shape) = tensor.shape.as_ref() {
-                return shape
-                    .dim
-                    .iter()
-                    .map(|dimension| {
-                        if let Some(
-                            onnx_protobuf::tensor_shape_proto::dimension::Value::DimValue(v),
-                        ) = &dimension.value
-                        {
-                            *v as usize
-                        } else {
-                            1
-                        }
-                    })
-                    .collect();
-            }
-        }
+    if let Some(type_proto) = value.type_.as_ref()
+        && let Some(onnx_protobuf::type_proto::Value::TensorType(tensor)) = &type_proto.value
+        && let Some(shape) = tensor.shape.as_ref()
+    {
+        return shape
+            .dim
+            .iter()
+            .map(|dimension| {
+                if let Some(onnx_protobuf::tensor_shape_proto::dimension::Value::DimValue(v)) =
+                    &dimension.value
+                {
+                    *v as usize
+                } else {
+                    1
+                }
+            })
+            .collect();
     }
 
     vec![]
@@ -120,8 +118,7 @@ pub fn get_f32_attr(node: &NodeProto, name: &str, default: f32) -> f32 {
             return attr.f;
         }
     }
-
-    return default;
+    default
 }
 
 /// Element-wise binary operation with scalar broadcasting support
