@@ -406,7 +406,6 @@ def test_matmul_transpose_attention(backend):
 
 
 def test_multi_layer_mlp(backend):
-    return
     """Test 3-layer MLP with GELU activations."""
     model = MultiLayerMLP(in_features=16, hidden=32, out_features=8)
     model.eval()

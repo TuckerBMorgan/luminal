@@ -186,12 +186,21 @@ pub fn parse_div_node(
 
     // When divisor is a known constant, pre-compute reciprocal and use Mul
     if let Some(vb) = known_values.get(&node.input[1]).cloned() {
-        let recip_values: Vec<f32> = vb.iter().map(|v| 1.0 / v).collect();
         let recip_name = format!("{}_recip", node.input[1]);
-        let b_shape: Vec<usize> = b.dims().iter().map(|e| e.to_usize().unwrap()).collect();
-        let recip_tensor = cx.named_tensor(recip_name.clone(), b_shape);
-        tensors.insert(recip_name.clone(), recip_tensor);
-        weight_data.push((recip_name, recip_values));
+
+        // Check if we've already created this reciprocal tensor (e.g., same constant
+        // used as divisor in multiple Div operations). Reuse to avoid creating
+        // orphan Input nodes that never get their data set.
+        let recip_tensor = if let Some(existing) = tensors.get(&recip_name) {
+            *existing
+        } else {
+            let recip_values: Vec<f32> = vb.iter().map(|v| 1.0 / v).collect();
+            let b_shape: Vec<usize> = b.dims().iter().map(|e| e.to_usize().unwrap()).collect();
+            let new_tensor = cx.named_tensor(recip_name.clone(), b_shape);
+            tensors.insert(recip_name.clone(), new_tensor);
+            weight_data.push((recip_name, recip_values));
+            new_tensor
+        };
 
         let a_bc = broadcast_to(a, &broadcast_shape);
         let b_recip_bc = broadcast_to(recip_tensor, &broadcast_shape);
