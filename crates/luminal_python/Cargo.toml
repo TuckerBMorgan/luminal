@@ -1,0 +1,22 @@
+[package]
+name = "luminal_python"
+version = "0.1.0"
+edition.workspace = true
+description = "Python bindings for Luminal deep learning compiler"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "luminal_python"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+luminal = { path = "../.." }
+luminal_cuda = { path = "../luminal_cuda" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+onnx-protobuf = "0.2"
+protobuf = "~3.4"
+rustc-hash = "2.1.1"
+
+[[test]]
+name = "integration"
+path = "tests_rs/integration.rs"
