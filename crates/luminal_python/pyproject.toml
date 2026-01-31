@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["extension-module"]
 module-name = "luminal_python.luminal_python"
 python-source = "python"
 

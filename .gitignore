@@ -20,3 +20,8 @@ Cargo.lock
 tokenizer.json
 **/.cache
 **/proptest-regressions
+
+# Python
+__pycache__/
+*.pyc
+.venv/

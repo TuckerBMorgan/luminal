@@ -7,15 +7,19 @@ license = "MIT OR Apache-2.0"
 
 [lib]
 name = "luminal_python"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 luminal = { path = "../.." }
 luminal_cuda = { path = "../luminal_cuda" }
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = "0.23"
 onnx-protobuf = "0.2"
 protobuf = "~3.4"
 rustc-hash = "2.1.1"
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
 
 [[test]]
 name = "integration"
