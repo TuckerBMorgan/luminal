@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::{fmt::Debug, sync::Arc};
 
 use crate::op::OpParam::*;
@@ -1455,6 +1456,7 @@ impl From<Vec<i32>> for NativeData {
 pub struct NativeRuntime {
     pub buffers: FxHashMap<NodeIndex, NativeData>,
     pub graph: StableGraph<Arc<Box<dyn NativeOp>>, ()>,
+    pub finished_nodes: HashSet<NodeIndex>,
 }
 
 impl NativeRuntime {
@@ -1473,6 +1475,33 @@ impl NativeRuntime {
             .unwrap_or_else(|| panic!("{id:?} is not an Input node in the graph"));
         self.buffers.insert(local_id, data.into());
     }
+
+    fn shake_buffer_tree(&mut self, node: NodeIndex) {
+        // Find all of the input nodes that feed into this node
+        let inputs: Vec<NodeIndex> = self
+            .graph
+            .edges_directed(node, Direction::Incoming)
+            .map(|x| x.source())
+            .collect();
+
+        // Check if each of them can be release
+        for input in inputs {
+            self.check_if_input_is_no_longer_needed(input);
+        }
+    }
+
+    fn check_if_input_is_no_longer_needed(&mut self, input_node: NodeIndex) {
+        // For any input node, all nodes that relay on them must have finished
+        // before we can remove them
+        let can_remove = self
+            .graph
+            .edges_directed(input_node, Direction::Outgoing)
+            .all(|x| self.finished_nodes.contains(&x.target()));
+
+        if can_remove {
+            self.buffers.remove(&input_node);
+        }
+    }
 }
 
 impl Runtime for NativeRuntime {
@@ -1485,6 +1514,7 @@ impl Runtime for NativeRuntime {
         Self {
             buffers: Default::default(),
             graph: Default::default(),
+            finished_nodes: Default::default(),
         }
     }
 
@@ -1568,8 +1598,11 @@ impl Runtime for NativeRuntime {
                 .into_iter()
                 .map(|e| &self.buffers[&e.source()])
                 .collect_vec();
+
             let output = self.graph[node].execute(inputs, dyn_map);
             self.buffers.insert(node, output);
+            self.finished_nodes.insert(node);
+            self.shake_buffer_tree(node);
         }
     }
 }
