@@ -575,11 +575,7 @@ pub fn parse_reduce_mean_node(
 
     // Handle keepdims by expanding back to original shape
     let output = if keepdims {
-        let input_shape: Vec<usize> = input
-            .dims()
-            .iter()
-            .map(|e| e.to_usize().unwrap())
-            .collect();
+        let input_shape: Vec<usize> = input.dims().iter().map(|e| e.to_usize().unwrap()).collect();
         result.expand_to_shape_on_axes(input_shape, axes)
     } else {
         result
@@ -949,7 +945,7 @@ pub fn parse_layer_normalization_node(
     let input_dims = input.dims();
     let mut scale_expanded = scale;
     for i in (0..resolved_axis).rev() {
-        scale_expanded = scale_expanded.expand_dim(0, input_dims[i].clone());
+        scale_expanded = scale_expanded.expand_dim(0, input_dims[i]);
     }
     let mut result = normalized.mul(scale_expanded);
 
@@ -960,7 +956,7 @@ pub fn parse_layer_normalization_node(
             .ok_or_else(|| format!("LayerNorm: missing bias tensor '{}'", node.input[2]))?;
         let mut bias_expanded = bias;
         for i in (0..resolved_axis).rev() {
-            bias_expanded = bias_expanded.expand_dim(0, input_dims[i].clone());
+            bias_expanded = bias_expanded.expand_dim(0, input_dims[i]);
         }
         result = result.add(bias_expanded);
     }
@@ -1599,12 +1595,18 @@ pub fn parse_gather_node(
     // Normalize negative indices: ONNX allows -1 for last element, -2 for second-to-last, etc.
     // Use conditional normalization instead of modulo to avoid floating-point precision loss:
     // if index < 0 then index + axis_dim else index
-    let axis_dim = data_dims[axis]
-        .to_usize()
-        .ok_or_else(|| "Gather: axis dimension must be concrete for index normalization".to_string())?;
+    let axis_dim = data_dims[axis].to_usize().ok_or_else(|| {
+        "Gather: axis dimension must be concrete for index normalization".to_string()
+    })?;
     let axis_dim_f32 = axis_dim as f32;
-    let zero = indices_raw.graph().constant_float(0.0).expand_rhs(indices_raw.shape);
-    let adjustment = indices_raw.graph().constant_float(axis_dim_f32).expand_rhs(indices_raw.shape);
+    let zero = indices_raw
+        .graph()
+        .constant_float(0.0)
+        .expand_rhs(indices_raw.shape);
+    let adjustment = indices_raw
+        .graph()
+        .constant_float(axis_dim_f32)
+        .expand_rhs(indices_raw.shape);
     let is_negative = indices_raw.lt(zero); // Returns 1.0 for negative, 0.0 for non-negative
     let indices = indices_raw + (is_negative * adjustment);
 
@@ -1689,7 +1691,10 @@ fn gather_axis0(
     // f32 only has 24-bit mantissa, so indices > 16.7M lose precision.
     // For vocab_size=50304, embed_dim=768: max flat index = 38.6M
     let indices_int = indices.cast(DType::Int);
-    let inner_dim_tensor = indices.graph().constant(inner_dim as i32).expand_rhs(indices_int.shape);
+    let inner_dim_tensor = indices
+        .graph()
+        .constant(inner_dim as i32)
+        .expand_rhs(indices_int.shape);
     let scaled = indices_int * inner_dim_tensor;
     let idx_ndim = indices.dims().len();
     let scaled_expanded = scaled.expand_dim(idx_ndim, inner_dim);
@@ -1700,7 +1705,7 @@ fn gather_axis0(
     let idx_dims = indices.dims();
     let mut offsets_expanded = offsets;
     for i in (0..idx_dims.len()).rev() {
-        offsets_expanded = offsets_expanded.expand_dim(0, idx_dims[i].clone());
+        offsets_expanded = offsets_expanded.expand_dim(0, idx_dims[i]);
     }
 
     let flat_indices = scaled_expanded + offsets_expanded; // Both Int, result is Int
@@ -1952,7 +1957,7 @@ pub fn parse_slice_node(
     // Build slice ranges for each axis
     let mut slice_ranges: Vec<(Expression, Expression)> = input_dims
         .iter()
-        .map(|d| (Expression::from(0), d.clone()))
+        .map(|d| (Expression::from(0), *d))
         .collect();
 
     for i in 0..axes.len() {
@@ -2508,12 +2513,9 @@ pub fn parse_split_node(
                     // Clamp to i32 range (luminal Expression limitation)
                     let start_i32 = (offset as i64).min(i32::MAX as i64) as i32;
                     let end_i32 = ((offset + size) as i64).min(i32::MAX as i64) as i32;
-                    (
-                        Expression::from(start_i32),
-                        Expression::from(end_i32),
-                    )
+                    (Expression::from(start_i32), Expression::from(end_i32))
                 } else {
-                    (Expression::from(0), d.clone())
+                    (Expression::from(0), *d)
                 }
             })
             .collect();
