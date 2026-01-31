@@ -24,4 +24,5 @@ tokenizer.json
 # Python
 __pycache__/
 *.pyc
+*.so
 .venv/

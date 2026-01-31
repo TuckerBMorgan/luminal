@@ -6,6 +6,7 @@ from typing import Callable, List
 
 import torch
 import torch._dynamo
+
 from luminal_python import process_onnx
 from luminal_python.compiled_model import CompiledModel
 
@@ -36,7 +37,7 @@ def _create_backend(backend: str = "native") -> Callable:
         tmp = tempfile.NamedTemporaryFile(suffix=".onnx", delete=False)
         tmp_path = tmp.name
         tmp.close()
-
+        gm.eval()
         try:
             # Export to ONNX
             torch.onnx.export(
@@ -45,7 +46,7 @@ def _create_backend(backend: str = "native") -> Callable:
                 tmp_path,
                 input_names=[f"input_{i}" for i in range(len(example_inputs))],
                 dynamic_axes=None,
-                opset_version=17,
+                opset_version=18,
             )
 
             # Process through Rust with the specified backend
@@ -64,17 +65,13 @@ def _create_backend(backend: str = "native") -> Callable:
 
 # Register the native backend (default)
 @torch._dynamo.register_backend
-def native(
-    gm: torch.fx.GraphModule, example_inputs: List[torch.Tensor]
-) -> Callable:
+def native(gm: torch.fx.GraphModule, example_inputs: List[torch.Tensor]) -> Callable:
     """torch.compile backend using the native (CPU) runtime."""
     return _create_backend("native")(gm, example_inputs)
 
 
 # Register the CUDA backend
 @torch._dynamo.register_backend
-def cuda(
-    gm: torch.fx.GraphModule, example_inputs: List[torch.Tensor]
-) -> Callable:
+def cuda(gm: torch.fx.GraphModule, example_inputs: List[torch.Tensor]) -> Callable:
     """torch.compile backend using the CUDA (GPU) runtime."""
     return _create_backend("cuda")(gm, example_inputs)
